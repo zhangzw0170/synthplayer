@@ -53,21 +53,21 @@ fn icon_btn(ui: &mut egui::Ui, kind: &str, tooltip: &str) -> bool {
     let s = 5.0;
 
     match kind {
-        "prev" => {
+        "rewind" => {
             let x = cx.x + 1.0;
             tri(painter, egui::pos2(x, cx.y), egui::pos2(x, cx.y - s), egui::pos2(x - s, cx.y), c);
             tri(painter, egui::pos2(x - s, cx.y), egui::pos2(x - s, cx.y - s), egui::pos2(x - 2.0 * s, cx.y), c);
         }
-        "next" => {
+        "forward" => {
             let x = cx.x - 1.0;
             tri(painter, egui::pos2(x, cx.y), egui::pos2(x, cx.y - s), egui::pos2(x + s, cx.y), c);
             tri(painter, egui::pos2(x + s, cx.y), egui::pos2(x + s, cx.y - s), egui::pos2(x + 2.0 * s, cx.y), c);
         }
-        "rewind" => {
+        "prev" => {
             tri(painter, egui::pos2(cx.x + 1.0, cx.y - s), egui::pos2(cx.x + 1.0, cx.y + s), egui::pos2(cx.x - s, cx.y), c);
             painter.rect_filled(egui::Rect::from_min_max(egui::pos2(cx.x - s - 2.0, cx.y - s), egui::pos2(cx.x - s, cx.y + s)), 0.0, c);
         }
-        "forward" => {
+        "next" => {
             tri(painter, egui::pos2(cx.x - 1.0, cx.y - s), egui::pos2(cx.x - 1.0, cx.y + s), egui::pos2(cx.x + s, cx.y), c);
             painter.rect_filled(egui::Rect::from_min_max(egui::pos2(cx.x + s, cx.y - s), egui::pos2(cx.x + s + 2.0, cx.y + s)), 0.0, c);
         }
