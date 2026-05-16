@@ -616,11 +616,12 @@ impl eframe::App for SynthPlayerApp {
                     };
                     let (mr, mode_resp) =
                         ui.allocate_exact_size(Vec2::new(24.0, 28.0), Sense::click());
+                    let is_hovered = mode_resp.hovered();
                     if mode_resp.clicked() {
                         self.cycle_play_mode();
                     }
                     mode_resp.on_hover_text(mode_tip);
-                    let mc = if mode_resp.hovered() { C::ACCENT } else { C::DIM };
+                    let mc = if is_hovered { C::ACCENT } else { C::DIM };
                     ui.painter().text(
                         mr.center(), Align2::CENTER_CENTER, mode_label,
                         FontId::proportional(11.0), mc,
