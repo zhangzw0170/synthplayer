@@ -532,14 +532,14 @@ impl eframe::App for SynthPlayerApp {
                     );
 
                     // Seek on click / drag
-                    if bar_resp.dragged() || bar_resp.clicked() {
-                        if let Some(ptr) = bar_resp.interact_pointer_pos() {
+                    if (bar_resp.dragged() || bar_resp.clicked())
+                        && let Some(ptr) = bar_resp.interact_pointer_pos()
+                    {
                             let frac = ((ptr.x - bar_rect.left()) / bar_rect.width())
                                 .clamp(0.0, 1.0);
                             self.player.seek(std::time::Duration::from_secs_f64(
                                 frac as f64 * total_secs,
                             ));
-                        }
                     }
 
                     ui.add_space(6.0);
@@ -710,11 +710,11 @@ impl eframe::App for SynthPlayerApp {
                                 .hint_text("Title or artist...")
                                 .desired_width(ui.available_width() - 60.0),
                         );
-                        if !self.search_query.is_empty() {
-                            if ui.button("Clear").clicked() {
-                                self.search_query.clear();
-                                search_resp.request_focus();
-                            }
+                        if !self.search_query.is_empty()
+                            && ui.button("Clear").clicked()
+                        {
+                            self.search_query.clear();
+                            search_resp.request_focus();
                         }
                     });
                 });

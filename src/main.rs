@@ -45,10 +45,10 @@ fn app_icon() -> egui::IconData {
                 let tx = cx - 6.0;
                 let ty = cy - 14.0;
                 let tri = point_in_triangle(
-                    x as f32, y as f32,
-                    tx, ty,
-                    tx, cy + 14.0,
-                    cx + 14.0, cy,
+                    (x as f32, y as f32),
+                    (tx, ty),
+                    (tx, cy + 14.0),
+                    (cx + 14.0, cy),
                 );
                 if tri {
                     // Accent blue
@@ -74,7 +74,11 @@ fn app_icon() -> egui::IconData {
     }
 }
 
-fn point_in_triangle(px: f32, py: f32, x1: f32, y1: f32, x2: f32, y2: f32, x3: f32, y3: f32) -> bool {
+fn point_in_triangle(p: (f32, f32), a: (f32, f32), b: (f32, f32), c: (f32, f32)) -> bool {
+    let (px, py) = p;
+    let (x1, y1) = a;
+    let (x2, y2) = b;
+    let (x3, y3) = c;
     let d1 = (px - x2) * (y1 - y2) - (x1 - x2) * (py - y2);
     let d2 = (px - x3) * (y2 - y3) - (x2 - x3) * (py - y3);
     let d3 = (px - x1) * (y3 - y1) - (x3 - x1) * (py - y1);
