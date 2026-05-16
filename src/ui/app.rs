@@ -55,13 +55,13 @@ fn icon_btn(ui: &mut egui::Ui, kind: &str, tooltip: &str) -> bool {
     match kind {
         "rewind" => {
             let x = cx.x + 1.0;
-            tri(painter, egui::pos2(x, cx.y), egui::pos2(x, cx.y - s), egui::pos2(x - s, cx.y), c);
-            tri(painter, egui::pos2(x - s, cx.y), egui::pos2(x - s, cx.y - s), egui::pos2(x - 2.0 * s, cx.y), c);
+            tri(painter, egui::pos2(x + s, cx.y - s), egui::pos2(x + s, cx.y + s), egui::pos2(x, cx.y), c);
+            tri(painter, egui::pos2(x, cx.y - s), egui::pos2(x, cx.y + s), egui::pos2(x - s, cx.y), c);
         }
         "forward" => {
             let x = cx.x - 1.0;
-            tri(painter, egui::pos2(x, cx.y), egui::pos2(x, cx.y - s), egui::pos2(x + s, cx.y), c);
-            tri(painter, egui::pos2(x + s, cx.y), egui::pos2(x + s, cx.y - s), egui::pos2(x + 2.0 * s, cx.y), c);
+            tri(painter, egui::pos2(x - s, cx.y - s), egui::pos2(x - s, cx.y + s), egui::pos2(x, cx.y), c);
+            tri(painter, egui::pos2(x, cx.y - s), egui::pos2(x, cx.y + s), egui::pos2(x + s, cx.y), c);
         }
         "prev" => {
             tri(painter, egui::pos2(cx.x + 1.0, cx.y - s), egui::pos2(cx.x + 1.0, cx.y + s), egui::pos2(cx.x - s, cx.y), c);
