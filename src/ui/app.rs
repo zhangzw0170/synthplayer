@@ -1,4 +1,5 @@
 use crate::core::metadata;
+use crate::core::analyzer;
 use crate::core::player::AudioPlayer;
 use crate::core::scanner;
 use eframe::egui::{self, Align2, Color32, CornerRadius, FontId, RichText, Sense, Stroke, Vec2};
@@ -213,6 +214,7 @@ pub struct SynthPlayerApp {
     search_query: String,
     show_dir_input: bool,
     play_mode: PlayMode,
+    analyzer_buf: analyzer::SampleBuffer,
 }
 
 #[derive(Clone, Copy, PartialEq)]
@@ -264,6 +266,7 @@ impl SynthPlayerApp {
             search_query: String::new(),
             show_dir_input: false,
             play_mode: PlayMode::Normal,
+            analyzer_buf: analyzer::new_buffer(),
         };
 
         if let Some(vol) = saved_vol {
@@ -329,7 +332,7 @@ impl SynthPlayerApp {
         let path = self.tracks[idx].path.clone();
         let title = self.tracks[idx].title.clone();
         let dur = self.tracks[idx].duration;
-        match self.player.play(path, Some(dur)) {
+        match self.player.play(path, Some(dur), Some(self.analyzer_buf.clone())) {
             Ok(()) => self.status_message = format!("Playing: {}", title),
             Err(e) => self.status_message = format!("Error [{}]: {}", title, e),
         }
@@ -765,6 +768,40 @@ impl eframe::App for SynthPlayerApp {
                 [ui.min_rect().left_top(), ui.min_rect().right_top()],
                 Stroke::new(1.0, C::BORDER),
             );
+
+            // Spectrum visualization
+            if self.player.current_path().is_some()
+                && let Some(buf) = self.player.analyzer_buffer()
+            {
+                    let h = 60.0;
+                    let w = ui.available_width();
+                    let (rect, _resp) = ui.allocate_exact_size(
+                        Vec2::new(w, h), Sense::hover(),
+                    );
+                    let painter = ui.painter();
+                    // Background
+                    painter.rect_filled(rect, 0.0, C::BG);
+
+                    let samples: Vec<f32> = buf.lock().unwrap().clone();
+                    let bars = analyzer::compute_spectrum(&samples, 44100, 64);
+
+                    let bar_w = (rect.width() / bars.len() as f32).max(2.0);
+                    let gap = 1.0;
+                    for (i, &mag) in bars.iter().enumerate() {
+                        let bh = mag * (h - 4.0);
+                        let x = rect.left() + i as f32 * (bar_w + gap);
+                        let y = rect.bottom() - bh;
+                        let c = Color32::from_rgb(
+                            (72.0 + mag * 100.0) as u8,
+                            (170.0 - mag * 50.0) as u8,
+                            (255.0 - mag * 80.0) as u8,
+                        );
+                        painter.rect_filled(
+                            egui::Rect::from_min_size(egui::pos2(x, y), Vec2::new(bar_w, bh)),
+                            1.0, c,
+                        );
+                    }
+            }
 
             let mut action = None;
             egui::ScrollArea::vertical().show(ui, |ui| {

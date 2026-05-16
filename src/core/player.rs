@@ -1,4 +1,5 @@
 use rodio::{Decoder, OutputStream, Sink, Source};
+use crate::core::analyzer::{AnalyzerSource, SampleBuffer};
 use std::fs::File;
 use std::io::BufReader;
 use std::path::PathBuf;
@@ -12,6 +13,7 @@ pub struct AudioPlayer {
     paused: bool,
     volume: f32,
     // Manual position tracking (rodio 0.20 Sink lacks get_pos)
+    analyzer_buf: Option<SampleBuffer>,
     play_start: Option<Instant>,
     elapsed_before_pause: Duration,
 }
@@ -25,13 +27,15 @@ impl AudioPlayer {
             current_duration: Duration::ZERO,
             paused: false,
             volume: 0.8,
+            analyzer_buf: None,
             play_start: None,
             elapsed_before_pause: Duration::ZERO,
         })
     }
 
-    pub fn play(&mut self, path: PathBuf, known_dur: Option<Duration>) -> Result<(), Box<dyn std::error::Error>> {
+    pub fn play(&mut self, path: PathBuf, known_dur: Option<Duration>, analyzer_buf: Option<SampleBuffer>) -> Result<(), Box<dyn std::error::Error>> {
         self.stop();
+        self.analyzer_buf = analyzer_buf;
 
         let (stream, stream_handle) = OutputStream::try_default()?;
         let sink = Sink::try_new(&stream_handle)?;
@@ -39,8 +43,16 @@ impl AudioPlayer {
         let file = File::open(&path)?;
         let decoder = Decoder::new(BufReader::new(file))?;
         let duration = decoder.total_duration().or(known_dur);
-        let source = decoder.track_position();
-        sink.append(source);
+
+        // Convert to f32, optionally feed analyzer buffer, then track position
+        let source = decoder.convert_samples::<f32>();
+        let source = if let Some(ref buf) = self.analyzer_buf {
+            Box::new(AnalyzerSource::new(source, buf.clone()))
+                as Box<dyn Source<Item = f32> + Send>
+        } else {
+            Box::new(source) as Box<dyn Source<Item = f32> + Send>
+        };
+        sink.append(source.track_position());
         sink.set_volume(self.volume);
 
         self._stream = Some(stream);
@@ -122,6 +134,10 @@ impl AudioPlayer {
 
     pub fn volume(&self) -> f32 {
         self.volume
+    }
+
+    pub fn analyzer_buffer(&self) -> Option<&SampleBuffer> {
+        self.analyzer_buf.as_ref()
     }
 
     pub fn position(&self) -> Duration {
