@@ -31,7 +31,7 @@ Shortcuts are disabled when a text field has focus.
 
 ```bash
 # Requires Rust 1.85+ (edition 2024)
-git clone https://github.com/<your-username>/synthplayer.git
+git clone https://github.com/zhangzw0170/synthplayer.git
 cd synthplayer
 cargo run --release
 ```
