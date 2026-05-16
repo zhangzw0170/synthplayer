@@ -30,7 +30,7 @@ impl AudioPlayer {
         })
     }
 
-    pub fn play(&mut self, path: PathBuf) -> Result<(), Box<dyn std::error::Error>> {
+    pub fn play(&mut self, path: PathBuf, known_dur: Option<Duration>) -> Result<(), Box<dyn std::error::Error>> {
         self.stop();
 
         let (stream, stream_handle) = OutputStream::try_default()?;
@@ -38,7 +38,7 @@ impl AudioPlayer {
 
         let file = File::open(&path)?;
         let decoder = Decoder::new(BufReader::new(file))?;
-        let duration = decoder.total_duration();
+        let duration = decoder.total_duration().or(known_dur);
         let source = decoder.track_position();
         sink.append(source);
         sink.set_volume(self.volume);

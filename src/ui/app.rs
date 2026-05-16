@@ -212,6 +212,26 @@ pub struct SynthPlayerApp {
     status_message: String,
     search_query: String,
     show_dir_input: bool,
+    play_mode: PlayMode,
+}
+
+#[derive(Clone, Copy, PartialEq)]
+enum PlayMode {
+    Normal,
+    Shuffle,
+    RepeatOne,
+    RepeatAll,
+}
+
+impl PlayMode {
+    fn next(self) -> Self {
+        match self {
+            Self::Normal => Self::Shuffle,
+            Self::Shuffle => Self::RepeatOne,
+            Self::RepeatOne => Self::RepeatAll,
+            Self::RepeatAll => Self::Normal,
+        }
+    }
 }
 
 struct TrackEntry {
@@ -219,6 +239,7 @@ struct TrackEntry {
     title: String,
     artist: String,
     duration_display: String,
+    duration: Duration,
     format: String,
 }
 
@@ -228,15 +249,26 @@ impl SynthPlayerApp {
         configure_style(&cc.egui_ctx);
         let player = AudioPlayer::new().expect("Failed to init audio");
 
+        let storage = cc.storage;
+        let saved_dir = storage.and_then(|s| s.get_string("music_dir"));
+        let saved_vol = storage
+            .and_then(|s| s.get_string("volume"))
+            .and_then(|v| v.parse::<f32>().ok());
+
         let mut app = Self {
-            music_dir: r"E:\Main\Music".into(),
+            music_dir: saved_dir.unwrap_or_else(|| r"E:\Main\Music".into()),
             tracks: Vec::new(),
             selected_index: None,
             player,
             status_message: "Ready".into(),
             search_query: String::new(),
             show_dir_input: false,
+            play_mode: PlayMode::Normal,
         };
+
+        if let Some(vol) = saved_vol {
+            app.player.set_volume(vol);
+        }
 
         // Auto-scan on startup
         app.scan_music();
@@ -268,6 +300,7 @@ impl SynthPlayerApp {
                     ),
                     artist: info.as_ref().map_or_else(String::new, |i| i.artist.clone()),
                     duration_display: format_dur(dur),
+                    duration: dur,
                     format: fmt,
                     path,
                 }
@@ -295,7 +328,8 @@ impl SynthPlayerApp {
     fn play_at(&mut self, idx: usize) {
         let path = self.tracks[idx].path.clone();
         let title = self.tracks[idx].title.clone();
-        match self.player.play(path) {
+        let dur = self.tracks[idx].duration;
+        match self.player.play(path, Some(dur)) {
             Ok(()) => self.status_message = format!("Playing: {}", title),
             Err(e) => self.status_message = format!("Error [{}]: {}", title, e),
         }
@@ -308,26 +342,78 @@ impl SynthPlayerApp {
     }
 
     fn play_next(&mut self) {
-        if let Some(idx) = self.selected_index
-            && idx + 1 < self.tracks.len()
-        {
-            self.selected_index = Some(idx + 1);
-            self.play_selected();
+        if self.tracks.is_empty() {
+            return;
+        }
+        match self.play_mode {
+            PlayMode::Normal => {
+                if let Some(idx) = self.selected_index
+                    && idx + 1 < self.tracks.len()
+                {
+                    self.selected_index = Some(idx + 1);
+                    self.play_selected();
+                }
+            }
+            PlayMode::Shuffle => {
+                use rand::Rng;
+                let next = rand::thread_rng().gen_range(0..self.tracks.len());
+                self.selected_index = Some(next);
+                self.play_selected();
+            }
+            PlayMode::RepeatOne => {
+                self.play_selected();
+            }
+            PlayMode::RepeatAll => {
+                let next = match self.selected_index {
+                    Some(idx) if idx + 1 < self.tracks.len() => idx + 1,
+                    _ => 0,
+                };
+                self.selected_index = Some(next);
+                self.play_selected();
+            }
         }
     }
 
     fn play_prev(&mut self) {
-        if let Some(idx) = self.selected_index {
-            self.selected_index = Some(idx.saturating_sub(1));
-            self.play_selected();
+        if self.tracks.is_empty() {
+            return;
         }
+        match self.play_mode {
+            PlayMode::Normal => {
+                if let Some(idx) = self.selected_index {
+                    self.selected_index = Some(idx.saturating_sub(1));
+                    self.play_selected();
+                }
+            }
+            PlayMode::Shuffle => {
+                use rand::Rng;
+                let prev = rand::thread_rng().gen_range(0..self.tracks.len());
+                self.selected_index = Some(prev);
+                self.play_selected();
+            }
+            PlayMode::RepeatOne => {
+                self.play_selected();
+            }
+            PlayMode::RepeatAll => {
+                let prev = match self.selected_index {
+                    Some(idx) if idx > 0 => idx - 1,
+                    _ => self.tracks.len().saturating_sub(1),
+                };
+                self.selected_index = Some(prev);
+                self.play_selected();
+            }
+        }
+    }
+
+    fn cycle_play_mode(&mut self) {
+        self.play_mode = self.play_mode.next();
     }
 }
 
 // ─── UI rendering ────────────────────────────────────────────────
 
 impl eframe::App for SynthPlayerApp {
-    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+    fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
         if self.player.finished() && self.player.current_path().is_some() {
             self.player.stop();
             self.play_next();
@@ -392,7 +478,7 @@ impl eframe::App for SynthPlayerApp {
                     let total = self.player.current_duration();
                     let total_secs = total.as_secs_f64().max(1.0);
                     let pos_secs = pos.as_secs_f64().min(total_secs);
-                    let progress = if total_secs > 0.0 { pos_secs / total_secs } else { 0.0 };
+                    let progress = if total_secs > 0.0 { (pos_secs / total_secs).clamp(0.0, 1.0) } else { 0.0 };
 
                     ui.label(
                         RichText::new(format_dur(pos))
@@ -513,7 +599,27 @@ impl eframe::App for SynthPlayerApp {
                         self.player.stop();
                     }
 
-                    ui.add_space(12.0);
+                    ui.add_space(10.0);
+
+                    // Play mode toggle
+                    let mode_label = match self.play_mode {
+                        PlayMode::Normal => ">>",
+                        PlayMode::Shuffle => "><",
+                        PlayMode::RepeatOne => "R1",
+                        PlayMode::RepeatAll => "RA",
+                    };
+                    let (mr, mode_resp) =
+                        ui.allocate_exact_size(Vec2::new(24.0, 28.0), Sense::click());
+                    if mode_resp.clicked() {
+                        self.cycle_play_mode();
+                    }
+                    let mc = if mode_resp.hovered() { C::ACCENT } else { C::DIM };
+                    ui.painter().text(
+                        mr.center(), Align2::CENTER_CENTER, mode_label,
+                        FontId::proportional(11.0), mc,
+                    );
+
+                    ui.add_space(8.0);
                     icon_btn(ui, "vol", "Volume");
                     let mut vol = self.player.volume();
                     let vs = ui.add_sized(
@@ -746,6 +852,51 @@ impl eframe::App for SynthPlayerApp {
                 self.play_at(idx);
             }
         });
+
+        // ── Keyboard shortcuts ──
+        if !ctx.wants_keyboard_input() {
+            let skip = Duration::from_secs(5);
+
+            if ctx.input(|i| i.key_pressed(egui::Key::Space)) {
+                let active = self.player.current_path().is_some() && !self.player.is_paused();
+                if active {
+                    self.player.pause();
+                } else if self.player.is_paused() {
+                    self.player.resume();
+                } else {
+                    self.play_selected();
+                }
+            }
+            if ctx.input(|i| i.key_pressed(egui::Key::ArrowLeft)) {
+                self.player.seek_backward(skip);
+            }
+            if ctx.input(|i| i.key_pressed(egui::Key::ArrowRight)) {
+                self.player.seek_forward(skip);
+            }
+            if ctx.input(|i| i.key_pressed(egui::Key::ArrowUp)) {
+                self.selected_index = Some(
+                    self.selected_index.map_or(0, |i| i.saturating_sub(1)));
+            }
+            if ctx.input(|i| i.key_pressed(egui::Key::ArrowDown)) {
+                let n = self.selected_index
+                    .map_or(0, |i| (i + 1).min(self.tracks.len().saturating_sub(1)));
+                if !self.tracks.is_empty() {
+                    self.selected_index = Some(n);
+                }
+            }
+            if ctx.input(|i| i.key_pressed(egui::Key::Enter)) {
+                self.play_selected();
+            }
+            if ctx.input(|i| i.key_pressed(egui::Key::Escape)) {
+                self.player.stop();
+            }
+        }
+
+        // Persist settings
+        if let Some(storage) = frame.storage_mut() {
+            storage.set_string("music_dir", self.music_dir.clone());
+            storage.set_string("volume", self.player.volume().to_string());
+        }
 
         ctx.request_repaint();
     }
