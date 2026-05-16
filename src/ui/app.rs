@@ -609,10 +609,10 @@ impl eframe::App for SynthPlayerApp {
                         PlayMode::RepeatAll => "RA",
                     };
                     let mode_tip = match self.play_mode {
-                        PlayMode::Normal => "Normal",
-                        PlayMode::Shuffle => "Shuffle",
-                        PlayMode::RepeatOne => "Repeat One",
-                        PlayMode::RepeatAll => "Repeat All",
+                        PlayMode::Normal => "顺序播放",
+                        PlayMode::Shuffle => "随机播放",
+                        PlayMode::RepeatOne => "单曲循环",
+                        PlayMode::RepeatAll => "列表循环",
                     };
                     let (mr, mode_resp) =
                         ui.allocate_exact_size(Vec2::new(24.0, 28.0), Sense::click());
