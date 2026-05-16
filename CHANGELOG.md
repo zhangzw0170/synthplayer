@@ -1,6 +1,19 @@
 # Changelog
 
-## 2026-05-16
+## [v0.1.0] — 2026-05-16
+
+First release. Minimal dark-themed local music player.
+
+### Features
+- Local music scanning (MP3, FLAC, WAV, OGG, AAC, M4A, WMA, APE, ALAC)
+- Metadata display (title, artist, duration) via lofty
+- Dark custom theme with hand-drawn icons
+- Custom progress bar with click/drag to seek
+- Format badges (color-coded per file type)
+- Search/filter by title or artist
+- Keyboard shortcuts
+- Four play modes: Normal, Shuffle, Repeat One, Repeat All
+- Session persistence (last directory and volume)
 
 ### Bugs Fixed
 
