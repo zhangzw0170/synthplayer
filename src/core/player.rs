@@ -102,8 +102,9 @@ impl AudioPlayer {
     }
 
     pub fn seek(&mut self, pos: Duration) {
-        if let Some(sink) = &self.sink {
-            let _ = sink.try_seek(pos);
+        if let Some(sink) = &self.sink
+            && sink.try_seek(pos).is_ok()
+        {
             self.elapsed_before_pause = pos;
             self.play_start = Some(Instant::now());
         }
