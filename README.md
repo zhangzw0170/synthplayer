@@ -61,6 +61,10 @@ src/
 
 Core modules have zero UI dependencies — swappable to TUI or Tauri.
 
+## Credits
+
+Developed with assistance from **DeepSeek V4 Pro** and **GLM 5.1**.
+
 ## License
 
 MIT
